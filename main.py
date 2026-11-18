@@ -1,12 +1,6 @@
 import turtle
 from literki import litery
 
-# === LISTA DO POPRAWY ===
-# - zaznaczone literki ~ poprawić, aby końcowa pozycja była w odpowiednim miejscu
-# - litera C za bardzo wychodzi w lewo, trzeba poprawić
-# - x i y zamienić, bo w robocie x jest w górę a y w dół - podczas pisania w KRL
-# - POPRAWIĆ BĄD W JUSTOWANIU
-
 # Słownik przypisujący znak do odpowiedniej funkcji rysującej
 ALFABET = {
     'A': litery.litera_A, 'B': litery.litera_B, 'C': litery.litera_C, 'D': litery.litera_D, 'E': litery.litera_E,
@@ -14,6 +8,15 @@ ALFABET = {
     'K': litery.litera_K, 'L': litery.litera_L, 'M': litery.litera_M, 'N': litery.litera_N, 'O': litery.litera_O,
     'P': litery.litera_P, 'R': litery.litera_R, 'S': litery.litera_S, 'T': litery.litera_T, 'U': litery.litera_U, 
     'W': litery.litera_W, 'Y': litery.litera_Y, 'Z': litery.litera_Z
+}
+
+# Wyznaczone szerokości dla każdej litery osobno proporcjonalnie do skali
+SZEROKOSCI_LITER = {
+    'A': 0.50, 'B': 0.60, 'C': 0.60, 'D': 0.60, 'E': 0.42,
+    'F': 0.42, 'G': 0.60, 'H': 0.42, 'I': 0.25, 'J': 0.60,
+    'K': 0.42, 'L': 0.38, 'M': 0.50, 'N': 0.42, 'O': 0.60,
+    'P': 0.60, 'R': 0.42, 'S': 0.60, 'T': 0.44, 'U': 0.60,
+    'W': 0.60, 'Y': 0.44, 'Z': 0.42,
 }
 
 # ==============================================================================
@@ -52,7 +55,7 @@ def wykonaj_grawerowanie():
 
 
     # === PARAMETRY WYKORZYSTYWANE DO OBLICZEŃ POSZCZEGÓLNYCH LITER ===
-    szerokosc_znaku = skala * 0.6  # Średnia szerokość znaku
+    szerokosc_znakow = {znak: skala * szerokosc for znak, szerokosc in SZEROKOSCI_LITER.items()}  # Inna szerokość dla każdego znaku
     odstep_znakow = skala * 0.2    # Odstęp między literami
     odstep_linii = skala * 1.5     # Odstęp między liniami tekstu
     szerokosc_spacji = skala * 0.5 # Szerokość spacji
@@ -65,19 +68,25 @@ def wykonaj_grawerowanie():
     szerokosc_aktualnej_linii = 0
 
     for slowo in slowa:
+        # === SPRAWDZANIE CZY SŁOWO ZAWIERA TYLKO DOZWOLONE ZNAKI ===
+        for znak in slowo:
+            if znak not in ALFABET:
+                print(f"\n[BŁĄD]: Niepoprawny znak '{znak}' w słowie '{slowo}'. Dozwolone są tylko duże litery A-Z.")
+                return
+        
         # === OBLICZANIE SZEROKOŚCI SŁOWA ===
-        szerokosc_slowa = sum(szerokosc_znaku + odstep_znakow for _ in slowo)
+        szerokosc_slowa = sum(szerokosc_znakow[znak] + odstep_znakow for znak in slowo)
 
-        if len(slowo) > 0:
-            szerokosc_slowa -= odstep_znakow  # Usuwanie ostatniego odstępu po literze
+        if slowo:
+            szerokosc_slowa += (len(slowo) - 1) * odstep_znakow  # Usuwanie ostatniego odstępu po literze
 
         dodatek_spacji = szerokosc_spacji if aktualna_linia else 0
 
         if szerokosc_aktualnej_linii + dodatek_spacji + szerokosc_slowa <= dostepna_szerokosc:
             aktualna_linia.append(slowo)
-            szerokosc_aktualnej_linii += szerokosc_slowa + szerokosc_spacji
+            szerokosc_aktualnej_linii += dodatek_spacji + szerokosc_slowa
         else:
-            if szerokosc_slowa > szerokosc_kartki:
+            if szerokosc_slowa > dostepna_szerokosc:
                 print("\n[BŁĄD]: Pojedyncze słowo jest zbyt szerokie na podany wymiar obszaru roboczego!")
                 return
             linie.append(aktualna_linia)
@@ -149,7 +158,9 @@ def wykonaj_grawerowanie():
         # Obliczanie szerokości bieżącej linii
         szerokosc_linii = 0
         for i, slowo in enumerate(linia):
-            dlugosc_slowa = sum(szerokosc_znaku + odstep_znakow for _ in slowo) - odstep_znakow
+            dlugosc_slowa = sum(szerokosc_znakow[znak] for znak in slowo)
+            if slowo:
+                dlugosc_slowa += (len(slowo) - 1) * odstep_znakow
             szerokosc_linii += dlugosc_slowa
             if i < len(linia) - 1:
                 szerokosc_linii += szerokosc_spacji
@@ -171,8 +182,11 @@ def wykonaj_grawerowanie():
     # Rysowanie wyrazów
         for index_slowa, slowo in enumerate(linia):
             for index_litery, litera in enumerate(slowo):
-                if litera in ALFABET:
-                    ALFABET[litera](robot, skala)
+                x_litery, y_litery = robot.position()
+                ALFABET[litera](robot, skala)
+
+                robot.penup()
+                robot.goto(x_litery + szerokosc_znakow[litera], y_litery)
 
                 # Dodanie odstępu między literami (oprócz ostatniej w słowie)
                 if index_litery < len(slowo) - 1:
